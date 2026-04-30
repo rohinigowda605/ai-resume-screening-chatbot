@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Resume Screening</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<button class="toggle-btn" onclick="toggleTheme()">🌙 Toggle Mode</button>
+
+<div id="login-page" class="container">
+    <div class="card">
+        <h2>Login</h2>
+        <input type="text" id="username" placeholder="Username"><br><br>
+        <input type="password" id="password" placeholder="Password"><br><br>
+        <button onclick="login()">Login</button>
+    </div>
+</div>
+
+<div id="main-page" class="container hidden">
+    <h1>🚀 AI Resume Screening</h1>
+
+    <div class="card">
+
+        <!-- Drag & Drop -->
+        <div id="drop-area">
+            <p>📂 Drag & Drop Resume Here</p>
+            <input type="file" id="resume">
+        </div>
+
+        <textarea id="jd" placeholder="Paste Job Description..."></textarea><br><br>
+
+        <button onclick="analyze()">Analyze</button>
+        <button onclick="downloadReport()">Download Report</button>
+    </div>
+
+    <div id="result" class="result-card"></div>
+</div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
