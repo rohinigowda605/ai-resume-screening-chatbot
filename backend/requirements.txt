@@ -4,3 +4,4 @@ spacy
 scikit-learn
 PyPDF2
 openai
+gunicorn
