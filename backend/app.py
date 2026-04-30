@@ -1,8 +1,8 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from parser import extract_text
-from skills import extract_skills
-from matcher import match_resume, missing_skills, calculate_scores
+from backend.parser import extract_text
+from backend.skills import extract_skills
+from backend.matcher import match_resume, missing_skills, calculate_scores
 from ai_helper import get_ai_feedback
 
 app = Flask(__name__)
