@@ -39,7 +39,7 @@ async function analyze() {
     formData.append("resume", file);
     formData.append("jd", jd);
 
-    const res = await fetch("http://127.0.0.1:5000/analyze", {
+    const res = await fetch("https://ai-resume-screening-chatbot.onrender.com/analyze", {
         method: "POST",
         body: formData
     });
