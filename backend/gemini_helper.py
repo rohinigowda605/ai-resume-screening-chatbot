@@ -6,7 +6,7 @@ genai.configure(
 )
 
 model = genai.GenerativeModel(
-    "models/gemini-1.5-flash"
+    "gemini-pro"
 )
 
 def get_ai_feedback(
@@ -18,7 +18,7 @@ def get_ai_feedback(
     try:
 
         prompt = f"""
-        Analyze this resume.
+        Analyze this resume for ATS.
 
         Resume:
         {resume_text[:3000]}
@@ -29,7 +29,11 @@ def get_ai_feedback(
         Missing Skills:
         {", ".join(missing_skills)}
 
-        Give ATS improvement suggestions.
+        Give:
+        1. ATS improvements
+        2. Resume improvements
+        3. Missing skills
+        4. Career suggestions
         """
 
         response = model.generate_content(
@@ -40,4 +44,4 @@ def get_ai_feedback(
 
     except Exception as e:
 
-        return str(e)
+        return f"Gemini Error: {str(e)}"
