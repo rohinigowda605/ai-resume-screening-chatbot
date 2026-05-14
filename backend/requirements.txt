@@ -3,5 +3,6 @@ flask-cors
 spacy
 scikit-learn
 PyPDF2
-openai
+google-generativeai
 gunicorn
+pymupdf
