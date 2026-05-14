@@ -98,7 +98,7 @@ async function analyze() {
             ${data.rank}</h3>
 
             <h3>🚀 Improvement Needed:
-            ${data.improvement}%</h3>
+            ${data.improvement_needed}%</h3>
 
             <h3>✅ Matched Skills</h3>
 
