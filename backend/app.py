@@ -1,8 +1,8 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import fitz
-import os
 import google.generativeai as genai
+import os
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -10,33 +10,17 @@ from sklearn.metrics.pairwise import cosine_similarity
 app = Flask(__name__)
 CORS(app)
 
-# Gemini API Setup
-genai.configure(api_key=os.getenv("AIzaSyAHoJtYe9GHCro5kDWzlczg3ULgYLNN8bU"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-1.5-flash-8b")
 
-# Skills Database
 skills_db = [
-    "python",
-    "java",
-    "sql",
-    "machine learning",
-    "html",
-    "css",
-    "javascript",
-    "react",
-    "node js",
-    "mongodb",
-    "aws",
-    "docker",
-    "git",
-    "flask",
-    "django",
-    "tensorflow",
-    "deep learning"
+    "python","java","sql","machine learning","html","css",
+    "javascript","react","node js","mongodb","aws","docker",
+    "git","flask","django","tensorflow","deep learning",
+    "full stack","api","mysql"
 ]
 
-# Extract text from PDF
 def extract_text(pdf_file):
 
     text = ""
@@ -48,25 +32,21 @@ def extract_text(pdf_file):
 
     return text.lower()
 
-
-# ATS Similarity Score
 def calculate_similarity(resume_text, job_desc):
 
-    documents = [resume_text, job_desc]
+    docs = [resume_text, job_desc]
 
     tfidf = TfidfVectorizer(stop_words='english')
 
-    tfidf_matrix = tfidf.fit_transform(documents)
+    matrix = tfidf.fit_transform(docs)
 
     similarity = cosine_similarity(
-        tfidf_matrix[0:1],
-        tfidf_matrix[1:2]
+        matrix[0:1],
+        matrix[1:2]
     )
 
     return round(similarity[0][0] * 100, 2)
 
-
-# Skill Matching
 def skill_match(resume_text, job_desc):
 
     matched = []
@@ -82,18 +62,14 @@ def skill_match(resume_text, job_desc):
             else:
                 missing.append(skill)
 
-    total_skills = len(matched) + len(missing)
+    total = len(matched) + len(missing)
 
-    if total_skills == 0:
-        score = 0
-
-    else:
-        score = (len(matched) / total_skills) * 100
+    score = 0 if total == 0 else (
+        len(matched) / total
+    ) * 100
 
     return matched, missing, round(score, 2)
 
-
-# Resume Section Checker
 def section_checker(resume_text):
 
     sections = [
@@ -104,48 +80,35 @@ def section_checker(resume_text):
         "certification"
     ]
 
-    missing_sections = []
+    missing = []
 
     for section in sections:
 
         if section not in resume_text:
-            missing_sections.append(section)
+            missing.append(section)
 
-    return missing_sections
+    return missing
 
-
-# Gemini AI Feedback
-def generate_ai_feedback(
-    resume_text,
-    job_desc,
-    missing_skills,
-    final_score
-):
-
-    prompt = f"""
-    You are an AI career coach.
-
-    ATS Score: {final_score}
-
-    Missing Skills:
-    {", ".join(missing_skills)}
-
-    Resume:
-    {resume_text[:1000]}
-
-    Job Description:
-    {job_desc[:1000]}
-
-    Give:
-    1. Resume improvement tips
-    2. Missing technical skills
-    3. ATS optimization suggestions
-    4. Career advice
-
-    Keep response short and professional.
-    """
+def get_ai_feedback(resume_text, job_desc):
 
     try:
+
+        prompt = f'''
+        Analyze this resume.
+
+        Resume:
+        {resume_text[:3000]}
+
+        Job:
+        {job_desc}
+
+        Give:
+        1. strengths
+        2. missing skills
+        3. grammar improvements
+        4. ATS suggestions
+        5. final recommendation
+        '''
 
         response = model.generate_content(prompt)
 
@@ -153,91 +116,83 @@ def generate_ai_feedback(
 
     except Exception as e:
 
-        print("Gemini Error:", e)
+        return f"AI feedback unavailable: {str(e)}"
 
-        return "AI feedback not available right now."
+def get_interview_questions(resume_text):
 
+    try:
 
-# Main API
+        prompt = f'''
+        Generate 5 technical interview questions
+        from this resume.
+
+        Resume:
+        {resume_text[:2000]}
+        '''
+
+        response = model.generate_content(prompt)
+
+        return response.text
+
+    except:
+
+        return "Interview questions unavailable."
+
 @app.route('/analyze', methods=['POST'])
+
 def analyze_resume():
 
     try:
 
-        # Get files/data
         pdf = request.files['resume']
 
-        job_desc = request.form['job_desc']
+        job_desc = request.form['jd']
 
-        # Extract resume text
         resume_text = extract_text(pdf)
 
-        # Similarity Score
         similarity_score = calculate_similarity(
             resume_text,
             job_desc
         )
 
-        # Skill Match
         matched_skills, missing_skills, skill_score = skill_match(
             resume_text,
             job_desc
         )
 
-        # Missing Sections
-        missing_sections = section_checker(resume_text)
+        missing_sections = section_checker(
+            resume_text
+        )
 
-        # Final ATS Score
         final_score = round(
             (similarity_score * 0.6) +
             (skill_score * 0.4),
             2
         )
 
-        # Gemini AI Feedback
-        ai_feedback = generate_ai_feedback(
-            resume_text,
-            job_desc,
-            missing_skills,
-            final_score
-        )
+        if final_score >= 80:
+            rank = "Excellent Resume"
 
-        # Suggestions
-        suggestions = []
-
-        if missing_skills:
-
-            suggestions.append(
-                "Add these skills: " +
-                ", ".join(missing_skills)
-            )
-
-        if missing_sections:
-
-            suggestions.append(
-                "Add sections: " +
-                ", ".join(missing_sections)
-            )
-
-        if final_score < 50:
-
-            suggestions.append(
-                "Resume needs major improvement for ATS systems."
-            )
-
-        elif final_score < 75:
-
-            suggestions.append(
-                "Resume is good but can be improved."
-            )
+        elif final_score >= 60:
+            rank = "Good Resume"
 
         else:
+            rank = "Needs Improvement"
 
-            suggestions.append(
-                "Resume is ATS optimized."
-            )
+        improvement = round(
+            100 - final_score,
+            2
+        )
 
-        # JSON Response
+        ai_feedback = get_ai_feedback(
+            resume_text,
+            job_desc
+        )
+
+        interview_questions = get_interview_questions(
+            resume_text
+        )
+
         return jsonify({
 
             "ats_score": final_score,
@@ -252,9 +207,13 @@ def analyze_resume():
 
             "missing_sections": missing_sections,
 
-            "suggestions": suggestions,
+            "rank": rank,
 
-            "ai_feedback": ai_feedback
+            "improvement": improvement,
+
+            "ai_feedback": ai_feedback,
+
+            "interview_questions": interview_questions
         })
 
     except Exception as e:
@@ -263,8 +222,6 @@ def analyze_resume():
             "error": str(e)
         })
 
-
-# Run Server
 if __name__ == '__main__':
 
     app.run(debug=True)
