@@ -1,43 +1,105 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-    <title>AI Resume Screening</title>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+    content="width=device-width, initial-scale=1.0">
+
+    <title>AI Resume Screening Chatbot</title>
+
     <link rel="stylesheet" href="style.css">
+
 </head>
+
 <body>
 
-<button class="toggle-btn" onclick="toggleTheme()">🌙 Toggle Mode</button>
+    <!-- DARK MODE BUTTON -->
+    <button class="toggle-btn"
+    onclick="toggleTheme()">
+        🌙 Toggle Mode
+    </button>
 
-<div id="login-page" class="container">
-    <div class="card">
-        <h2>Login</h2>
-        <input type="text" id="username" placeholder="Username"><br><br>
-        <input type="password" id="password" placeholder="Password"><br><br>
-        <button onclick="login()">Login</button>
-    </div>
-</div>
+    <!-- LOGIN PAGE -->
+    <div id="login-page" class="container">
 
-<div id="main-page" class="container hidden">
-    <h1>🚀 AI Resume Screening</h1>
+        <div class="card">
 
-    <div class="card">
+            <h1>Login</h1>
 
-        <!-- Drag & Drop -->
-        <div id="drop-area">
-            <p>📂 Drag & Drop Resume Here</p>
-            <input type="file" id="resume">
+            <input
+            type="text"
+            id="username"
+            placeholder="Username">
+
+            <input
+            type="password"
+            id="password"
+            placeholder="Password">
+
+            <button onclick="login()">
+                Login
+            </button>
+
         </div>
 
-        <textarea id="jd" placeholder="Paste Job Description..."></textarea><br><br>
-
-        <button onclick="analyze()">Analyze</button>
-        <button onclick="downloadReport()">Download Report</button>
     </div>
 
-    <div id="result" class="result-card"></div>
-</div>
+    <!-- MAIN PAGE -->
+    <div id="main-page"
+    class="container hidden">
 
-<script src="script.js"></script>
+        <div class="card">
+
+            <h1>
+                🚀 AI Resume Screening Chatbot
+            </h1>
+
+            <!-- FILE UPLOAD -->
+            <input
+            type="file"
+            id="resume"
+            accept=".pdf">
+
+            <!-- DRAG DROP -->
+            <div class="drop-zone"
+            ondrop="dropHandler(event)"
+            ondragover="allowDrop(event)">
+
+                Drag & Drop Resume PDF Here
+
+            </div>
+
+            <!-- JOB DESCRIPTION -->
+            <textarea
+            id="jd"
+            placeholder="Paste Job Description Here">
+            </textarea>
+
+            <!-- BUTTON -->
+            <button onclick="analyze()">
+                Analyze
+            </button>
+
+            <!-- LOADING -->
+            <div id="loading"
+            style="display:none;">
+
+                ⏳ Analyzing Resume...
+
+            </div>
+
+            <!-- RESULT -->
+            <div id="result"></div>
+
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
 
 </body>
+
 </html>
