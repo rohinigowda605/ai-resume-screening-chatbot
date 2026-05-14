@@ -6,6 +6,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from backend.gemini_helper import get_ai_feedback
+from backend.matcher import *
 
 app = Flask(__name__)
 CORS(app)

@@ -1,39 +1,43 @@
+import google.generativeai as genai
 import os
-from openai import OpenAI
 
-client = OpenAI()
+genai.configure(
+    api_key=os.getenv("GEMINI_API_KEY")
+)
 
-def get_ai_feedback(resume_text, jd_text, missing_skills):
+model = genai.GenerativeModel(
+    "gemini-1.5-flash"
+)
+
+def get_ai_feedback(
+    resume_text,
+    job_desc,
+    missing_skills
+):
+
     try:
+
         prompt = f"""
-        You are an expert AI career coach.
+        Analyze this resume.
 
         Resume:
-        {resume_text[:500]}
+        {resume_text[:3000]}
 
         Job Description:
-        {jd_text[:500]}
+        {job_desc}
 
         Missing Skills:
-        {missing_skills}
+        {", ".join(missing_skills)}
 
-        Give:
-        1. Specific resume improvements
-        2. Skills to learn
-        3. 1-2 project ideas
-
-        Keep it short and clear.
+        Give ATS improvement suggestions.
         """
 
-        response = client.chat.completions.create(
-            model="gpt-4.1-mini",
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
+        response = model.generate_content(
+            prompt
         )
 
-        return response.choices[0].message.content
+        return response.text
 
     except Exception as e:
-        print("AI ERROR:", str(e))
-        return "AI feedback not available right now."
+
+        return str(e)
