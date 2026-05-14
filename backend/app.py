@@ -1,198 +1,86 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import fitz
-import google.generativeai as genai
-import os
-
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
-app = Flask(__name__)
-CORS(app)
-
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
-model = genai.GenerativeModel("gemini-1.5-flash-8b")
-
-skills_db = [
-    "python","java","sql","machine learning","html","css",
-    "javascript","react","node js","mongodb","aws","docker",
-    "git","flask","django","tensorflow","deep learning",
-    "full stack","api","mysql"
-]
-
-def extract_text(pdf_file):
-
-    text = ""
-
-    pdf = fitz.open(stream=pdf_file.read(), filetype="pdf")
-
-    for page in pdf:
-        text += page.get_text()
-
-    return text.lower()
-
-def calculate_similarity(resume_text, job_desc):
-
-    docs = [resume_text, job_desc]
-
-    tfidf = TfidfVectorizer(stop_words='english')
-
-    matrix = tfidf.fit_transform(docs)
-
-    similarity = cosine_similarity(
-        matrix[0:1],
-        matrix[1:2]
-    )
-
-    return round(similarity[0][0] * 100, 2)
-
-def skill_match(resume_text, job_desc):
-
-    matched = []
-    missing = []
-
-    for skill in skills_db:
-
-        if skill in job_desc.lower():
-
-            if skill in resume_text:
-                matched.append(skill)
-
-            else:
-                missing.append(skill)
-
-    total = len(matched) + len(missing)
-
-    score = 0 if total == 0 else (
-        len(matched) / total
-    ) * 100
-
-    return matched, missing, round(score, 2)
-
-def section_checker(resume_text):
-
-    sections = [
-        "skills",
-        "projects",
-        "education",
-        "experience",
-        "certification"
-    ]
-
-    missing = []
-
-    for section in sections:
-
-        if section not in resume_text:
-            missing.append(section)
-
-    return missing
-
-def get_ai_feedback(resume_text, job_desc):
-
-    try:
-
-        prompt = f'''
-        Analyze this resume.
-
-        Resume:
-        {resume_text[:3000]}
-
-        Job:
-        {job_desc}
-
-        Give:
-        1. strengths
-        2. missing skills
-        3. grammar improvements
-        4. ATS suggestions
-        5. final recommendation
-        '''
-
-        response = model.generate_content(prompt)
-
-        return response.text
-
-    except Exception as e:
-
-        return f"AI feedback unavailable: {str(e)}"
-
-def get_interview_questions(resume_text):
-
-    try:
-
-        prompt = f'''
-        Generate 5 technical interview questions
-        from this resume.
-
-        Resume:
-        {resume_text[:2000]}
-        '''
-
-        response = model.generate_content(prompt)
-
-        return response.text
-
-    except:
-
-        return "Interview questions unavailable."
-
 @app.route('/analyze', methods=['POST'])
-
 def analyze_resume():
 
     try:
 
-        pdf = request.files['resume']
+        # Safe request handling
+        pdf = request.files.get('resume')
+        job_desc = request.form.get('job_desc')
 
-        job_desc = request.form['jd']
+        if not pdf:
+            return jsonify({
+                "error": "Resume file missing"
+            }), 400
 
+        if not job_desc:
+            return jsonify({
+                "error": "Job description missing"
+            }), 400
+
+        # Extract resume text
         resume_text = extract_text(pdf)
 
+        # Similarity Score
         similarity_score = calculate_similarity(
             resume_text,
             job_desc
         )
 
+        # Skill Match
         matched_skills, missing_skills, skill_score = skill_match(
             resume_text,
             job_desc
         )
 
-        missing_sections = section_checker(
-            resume_text
-        )
+        # Missing Sections
+        missing_sections = section_checker(resume_text)
 
+        # Final ATS Score
         final_score = round(
             (similarity_score * 0.6) +
             (skill_score * 0.4),
             2
         )
 
+        # Rank
         if final_score >= 80:
-            rank = "Excellent Resume"
-
+            rank = "Excellent"
         elif final_score >= 60:
-            rank = "Good Resume"
-
+            rank = "Good"
         else:
             rank = "Needs Improvement"
 
-        improvement = round(
-            100 - final_score,
-            2
-        )
+        # Improvement %
+        improvement_needed = round(100 - final_score, 2)
 
-        ai_feedback = get_ai_feedback(
-            resume_text,
-            job_desc
-        )
+        # AI Feedback
+        ai_feedback = "AI feedback unavailable."
 
-        interview_questions = get_interview_questions(
-            resume_text
-        )
+        try:
+            from gemini_helper import get_ai_feedback
 
+            ai_feedback = get_ai_feedback(
+                resume_text,
+                job_desc,
+                missing_skills
+            )
+
+        except Exception as ai_error:
+            ai_feedback = f"AI feedback unavailable: {str(ai_error)}"
+
+        # Interview Questions
+        interview_questions = []
+
+        try:
+            interview_questions = [
+                f"Explain your experience with {skill}"
+                for skill in matched_skills[:5]
+            ]
+
+        except:
+            interview_questions = []
+
+        # Final Response
         return jsonify({
 
             "ats_score": final_score,
@@ -201,15 +89,15 @@ def analyze_resume():
 
             "skill_score": skill_score,
 
+            "rank": rank,
+
+            "improvement_needed": improvement_needed,
+
             "matched_skills": matched_skills,
 
             "missing_skills": missing_skills,
 
             "missing_sections": missing_sections,
-
-            "rank": rank,
-
-            "improvement": improvement,
 
             "ai_feedback": ai_feedback,
 
@@ -220,8 +108,4 @@ def analyze_resume():
 
         return jsonify({
             "error": str(e)
-        })
-
-if __name__ == '__main__':
-
-    app.run(debug=True)
+        }), 500
