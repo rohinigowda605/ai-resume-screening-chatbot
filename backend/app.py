@@ -1,9 +1,121 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import fitz
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+from gemini_helper import get_ai_feedback
+
+app = Flask(__name__)
+CORS(app)
+
+# Skills Database
+skills_db = [
+    "python",
+    "java",
+    "sql",
+    "machine learning",
+    "html",
+    "css",
+    "javascript",
+    "react",
+    "node js",
+    "mongodb",
+    "aws",
+    "docker",
+    "git",
+    "flask",
+    "django",
+    "tensorflow",
+    "deep learning",
+    "full stack"
+]
+
+# Extract text from PDF
+def extract_text(pdf_file):
+
+    text = ""
+
+    pdf = fitz.open(stream=pdf_file.read(), filetype="pdf")
+
+    for page in pdf:
+        text += page.get_text()
+
+    return text.lower()
+
+
+# ATS Similarity Score
+def calculate_similarity(resume_text, job_desc):
+
+    documents = [resume_text, job_desc]
+
+    tfidf = TfidfVectorizer(stop_words='english')
+
+    tfidf_matrix = tfidf.fit_transform(documents)
+
+    similarity = cosine_similarity(
+        tfidf_matrix[0:1],
+        tfidf_matrix[1:2]
+    )
+
+    return round(similarity[0][0] * 100, 2)
+
+
+# Skill Matching
+def skill_match(resume_text, job_desc):
+
+    matched = []
+    missing = []
+
+    for skill in skills_db:
+
+        if skill in job_desc.lower():
+
+            if skill in resume_text:
+                matched.append(skill)
+
+            else:
+                missing.append(skill)
+
+    total_skills = len(matched) + len(missing)
+
+    if total_skills == 0:
+        score = 0
+
+    else:
+        score = (len(matched) / total_skills) * 100
+
+    return matched, missing, round(score, 2)
+
+
+# Resume Section Checker
+def section_checker(resume_text):
+
+    sections = [
+        "skills",
+        "projects",
+        "education",
+        "experience",
+        "certification"
+    ]
+
+    missing_sections = []
+
+    for section in sections:
+
+        if section not in resume_text:
+            missing_sections.append(section)
+
+    return missing_sections
+
+
+# Main API
 @app.route('/analyze', methods=['POST'])
 def analyze_resume():
 
     try:
 
-        # Safe request handling
         pdf = request.files.get('resume')
         job_desc = request.form.get('job_desc')
 
@@ -17,10 +129,10 @@ def analyze_resume():
                 "error": "Job description missing"
             }), 400
 
-        # Extract resume text
+        # Extract Resume
         resume_text = extract_text(pdf)
 
-        # Similarity Score
+        # Similarity
         similarity_score = calculate_similarity(
             resume_text,
             job_desc
@@ -45,42 +157,33 @@ def analyze_resume():
         # Rank
         if final_score >= 80:
             rank = "Excellent"
+
         elif final_score >= 60:
             rank = "Good"
+
         else:
             rank = "Needs Improvement"
 
         # Improvement %
         improvement_needed = round(100 - final_score, 2)
 
-        # AI Feedback
-        ai_feedback = "AI feedback unavailable."
-
-        try:
-            from gemini_helper import get_ai_feedback
-
-            ai_feedback = get_ai_feedback(
-                resume_text,
-                job_desc,
-                missing_skills
-            )
-
-        except Exception as ai_error:
-            ai_feedback = f"AI feedback unavailable: {str(ai_error)}"
+        # Gemini AI Feedback
+        ai_feedback = get_ai_feedback(
+            resume_text,
+            job_desc,
+            missing_skills
+        )
 
         # Interview Questions
         interview_questions = []
 
-        try:
-            interview_questions = [
+        for skill in matched_skills[:5]:
+
+            interview_questions.append(
                 f"Explain your experience with {skill}"
-                for skill in matched_skills[:5]
-            ]
+            )
 
-        except:
-            interview_questions = []
-
-        # Final Response
+        # Response
         return jsonify({
 
             "ats_score": final_score,
@@ -109,3 +212,12 @@ def analyze_resume():
         return jsonify({
             "error": str(e)
         }), 500
+
+
+@app.route('/')
+def home():
+    return "AI Resume Screening Backend Running"
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
